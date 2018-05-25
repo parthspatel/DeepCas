@@ -216,6 +216,8 @@ class DeepCas():
 
         # self.sess.run(init_op)
         num_batches = int(len(self.labels) / self.batch_size)
+
+        batch_loss, batch_accuracy = 0, 0
         for epoch in range(1, self.epochs+1):
             step = 1
             for _ in range(num_batches):
@@ -232,7 +234,7 @@ class DeepCas():
                 if step % 100 is 0:
                     # Output Loss to Terminal, Summary to TensorBoard
                     print("Step: {} Loss: {}".format(step, loss))
-                    train_writer.add_summary(summary, step)
+                    # train_writer.add_summary(summary, step)
 
                 step += 1
 
@@ -243,10 +245,14 @@ class DeepCas():
                                            feed_dict={self.is_training: True,
                                                       self.x: batch_x,
                                                       self.y: batch_y})
-            print("Epoch: {} Loss: {} Accuracy {}".format(epoch, loss, accuracy))
-            val_summary = self.sess.run(self.val_summary,
-                                        feed_dict={self.accuracy_output: accuracy})
-            val_writer.add_summary(val_summary, step)
+            batch_loss += loss
+            batch_accuracy += accuracy
+            if epoch % 100 is 0:
+                print("Avgs:\tEpoch: {}\tLoss: {}\tAccuracy {}".format(
+                    str(epoch).rjust(100000), str(batch_loss/100).rjust(100000), str(batch_accuracy/100).rjust(100000)))
+            # val_summary = self.sess.run(self.val_summary,
+            #                             feed_dict={self.accuracy_output: accuracy})
+            # val_writer.add_summary(val_summary, step)
 
     def next_batch(self, batch_size, data, labels):
 
