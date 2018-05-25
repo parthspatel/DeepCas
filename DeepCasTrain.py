@@ -15,8 +15,10 @@ def main():
     session = tf.Session()
     data_shape = [4, 23, 2]
     batch_size = 2
-    epochs = 10000
+    epochs = 1000000
     learning_rate = 1e-4
+
+    sub_sample = 20
 
     # Conv2d inputs
     #     filters : Integer, dimensionality of the output space (ie. the number of filters in the convolution)
@@ -61,18 +63,20 @@ def main():
 
     guide, target, score = processData(paths, pam_path, proto_path)
 
-    guide, target, score = randomSample(20, guide, target, score)
+    if sub_sample:
+        guide, target, score = randomSample(sub_sample, guide, target, score)
 
-    print('> input data sizes:\n\tguides: {}\n\ttargets: {}\n\tscores: {}'.format(
-        str(len(guide)).rjust(8, ' '),
-        str(len(target)).rjust(7, ' '),
-        str(len(score)).rjust(8, ' ')))
     '''
     Shapes:
         stacked = [Size, 4, 23, 2]
         score = [Size]
     '''
     stacked = np.stack((guide, target), axis=-1)
+
+    print('> input data sizes:\n\tguides: {}\n\ttargets: {}\n\tscores: {}'.format(
+        str(len(guide)).rjust(8, ' '),
+        str(len(target)).rjust(7, ' '),
+        str(len(score)).rjust(8, ' ')))
     print('Stacked: {}'.format(str(list(stacked.shape)).rjust(10, ' ')))
     print('Score: {}'.format(str(list(score.shape)).rjust(10, ' ')))
 

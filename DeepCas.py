@@ -187,7 +187,8 @@ class DeepCas():
         self.accuracy_output_summary = tf.summary.scalar(name='Val Accuracy',
                                                          tensor=self.accuracy_output)
 
-        self.optimizer = tf.train.AdamOptimizer().minimize(self.loss)
+        self.val_summary = tf.summary.scalar(name='Val Accuracy',
+                                             tensor=self.accuracy_output)
 
     def train_init(self):
 
@@ -214,9 +215,9 @@ class DeepCas():
         save_file = os.path.join(self.save_directory, 'model')
 
         # self.sess.run(init_op)
-        step = 1
         num_batches = int(len(self.labels) / self.batch_size)
         for epoch in range(1, self.epochs+1):
+            step = 1
             for _ in range(num_batches):
                 batch_x, batch_y = self.next_batch(self.batch_size, self.data, self.labels)
                 batch_y = batch_y[:, None]
@@ -244,7 +245,7 @@ class DeepCas():
                                                       self.y: batch_y})
             print("Epoch: {} Loss: {} Accuracy {}".format(epoch, loss, accuracy))
             val_summary = self.sess.run(self.val_summary,
-                                        feed_dict={self.val_accuracy: accuracy})
+                                        feed_dict={self.accuracy_output: accuracy})
             val_writer.add_summary(val_summary, step)
 
     def next_batch(self, batch_size, data, labels):
