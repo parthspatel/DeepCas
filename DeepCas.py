@@ -248,11 +248,11 @@ class DeepCas():
             batch_loss += loss
             batch_accuracy += accuracy
 
-            print("> Epoch: {}\tLoss: {}\tAccuracy {}".format(
+            print("> Epoch: {0}\tLoss: {1}\tAccuracy {2}".format(
                 str(epoch).rjust(6), str(loss/20).rjust(6), str(accuracy/20).rjust(6)))
 
             if epoch % 100 is 0:
-                print("> Average:\tEpoch: {}\tLoss: {}\tAccuracy {}".format(
+                print("> Average:\tEpoch: {0}\tLoss: {1}\tAccuracy {2}".format(
                     str(epoch).rjust(6), str(batch_loss/20).rjust(6), str(batch_accuracy/20).rjust(6)))
                 batch_loss, batch_accuracy = 0, 0
                 print('--------------------------------------------------------')
