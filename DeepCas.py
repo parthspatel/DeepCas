@@ -95,7 +95,7 @@ class DeepCas():
         self.is_training = tf.placeholder(dtype=tf.bool, shape=None)
 
         net = self.x
-        print('Input Tensor: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
+        print('> Input Tensor: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
         layer_index = 1
         for conv_param, pool_param in zip(self.conv_parameters, self.max_pool_parameters):
             net = ConvBlock(input_tensor=net,
@@ -106,8 +106,8 @@ class DeepCas():
                             use_batch_norm=True,
                             is_training=self.is_training,
                             trainable=True).build()
-            print('Layer {}: {}'.format(str(layer_index).rjust(3, ' '),
-                                        str(list(net.get_shape())).rjust(10, ' ')))
+            print('> Layer {}: {}'.format(str(layer_index).rjust(3, ' '),
+                                          str(list(net.get_shape())).rjust(10, ' ')))
             layer_index += 1
 
         net = tf.layers.flatten(net)
@@ -121,7 +121,7 @@ class DeepCas():
                               bias_regularizer=None,
                               trainable=True,
                               name='fc_1')
-        print('Fully Connected 1: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
+        print('> Fully Connected 1: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
         net = tf.layers.batch_normalization(inputs=net,
                                             training=self.is_training,
                                             trainable=True,
@@ -139,7 +139,7 @@ class DeepCas():
                               bias_regularizer=None,
                               trainable=True,
                               name='fc_2')
-        print('Fully Connected 2: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
+        print('> Fully Connected 2: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
         net = tf.layers.batch_normalization(inputs=net,
                                             training=self.is_training,
                                             trainable=True,
@@ -157,7 +157,7 @@ class DeepCas():
                               bias_regularizer=None,
                               trainable=True,
                               name='fc_3')
-        print('Fully Connected 3: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
+        print('> Fully Connected 3: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
 
         # Results
         # ---------------------------------------------_------------------------
@@ -247,9 +247,15 @@ class DeepCas():
                                                       self.y: batch_y})
             batch_loss += loss
             batch_accuracy += accuracy
+
+            print("> Epoch: {}\tLoss: {}\tAccuracy {}".format(
+                str(epoch).rjust(6), str(loss/20).rjust(6), str(accuracy/20).rjust(6)))
+
             if epoch % 100 is 0:
-                print("Avgs:\tEpoch: {}\tLoss: {}\tAccuracy {}".format(
-                    str(epoch).rjust(100000), str(batch_loss/100).rjust(100000), str(batch_accuracy/100).rjust(100000)))
+                print("> Average:\tEpoch: {}\tLoss: {}\tAccuracy {}".format(
+                    str(epoch).rjust(6), str(batch_loss/20).rjust(6), str(batch_accuracy/20).rjust(6)))
+                print('--------------------------------------------------------')
+
             # val_summary = self.sess.run(self.val_summary,
             #                             feed_dict={self.accuracy_output: accuracy})
             # val_writer.add_summary(val_summary, step)

@@ -77,13 +77,14 @@ def main():
         str(len(guide)).rjust(8, ' '),
         str(len(target)).rjust(7, ' '),
         str(len(score)).rjust(8, ' ')))
-    print('Stacked: {}'.format(str(list(stacked.shape)).rjust(10, ' ')))
-    print('Score: {}'.format(str(list(score.shape)).rjust(10, ' ')))
+    print('> Stacked: {}'.format(str(list(stacked.shape)).rjust(10, ' ')))
+    print('> Score: {}'.format(str(list(score.shape)).rjust(10, ' ')))
 
     #-------------------------------------------------------------------------
 
     model.input_data(stacked, score)
 
+    print('Begin Training!')
     model.train(tb_directory)
 
 
