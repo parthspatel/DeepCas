@@ -84,7 +84,8 @@ def main():
 
     model.input_data(stacked, score)
 
-    print('Begin Training!')
+    print('> Begin Training!')
+    print('--------------------------------------------------------')
     model.train(tb_directory)
 
 
