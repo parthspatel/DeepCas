@@ -14,11 +14,11 @@ def main():
 
     session = tf.Session()
     data_shape = [4, 23, 2]
-    batch_size = 2
-    epochs = 1000000
+    batch_size = 1000
+    epochs = 100000
     learning_rate = 1e-4
 
-    sub_sample = 20
+    sub_sample = 35000
 
     # Conv2d inputs
     #     filters : Integer, dimensionality of the output space (ie. the number of filters in the convolution)
