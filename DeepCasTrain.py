@@ -14,7 +14,7 @@ def main():
 
     session = tf.Session()
     data_shape = [4, 23, 2]
-    batch_size = 1000
+    batch_size = 1500
     epochs = 100000
     learning_rate = 1e-4
 
@@ -85,8 +85,7 @@ def main():
         stacked = [Size, 4, 23, 2]
         score = [Size]
     '''
-    print(guide[0])
-    print(target[0])
+
     stacked = np.stack((guide, target), axis=-1)
 
     print('> input data sizes:\n\tguides: {}\n\ttargets: {}\n\tscores: {}'.format(
