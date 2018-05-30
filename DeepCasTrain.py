@@ -11,14 +11,25 @@ def main():
 
     # Model Paramaters
     #-------------------------------------------------------------------------
+    # config = tf.ConfigProto()
+    # config.gpu_options.allow_growth = True
+    # config=config
 
     session = tf.Session()
+    restore = False
+
     data_shape = [4, 23, 2]
     batch_size = 1500
-    epochs = 100000
-    learning_rate = 1e-4
+    val_size = 5000
+    epochs = 10000000
+    learning_rate = 1e-3
 
     sub_sample = None
+
+    use_batch_norm = True
+    use_dropout = False
+
+    tensorboard_directory = './tmp/tensorboard/2_basic_batch_norm_2'
 
     # Conv2d inputs
     #     filters : Integer, dimensionality of the output space (ie. the number of filters in the convolution)
@@ -34,10 +45,20 @@ def main():
                               {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
                              [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
                               {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 40, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 40, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 40, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 40, 'kernel_size': [2, 2], 'strides': (1, 1)}]]
+                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
+                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
+                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
+                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
+                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
+                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
+                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}]]
 
     # Max Pool inputs
     #     pool_size : An integer or tuple/list of 2 integers: (pool_height, pool_width) specifying the size of the pooling window
@@ -55,11 +76,39 @@ def main():
                                [{'pool_size': [1, 1], 'strides': [1, 1]},
                                 {'pool_size': [1, 1], 'strides': [1, 1]}],
                                [{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}]]
+                                {'pool_size': [1, 1], 'strides': [1, 1]}],
+                               [{'pool_size': [1, 1], 'strides': [1, 1]},
+                                {'pool_size': [1, 1], 'strides': [1, 1]}],
+                               [{'pool_size': [1, 2], 'strides': [1, 1]},
+                                {'pool_size': [1, 2], 'strides': [1, 1]}],
+                               [{'pool_size': [1, 2], 'strides': [1, 1]},
+                                {'pool_size': [1, 2], 'strides': [1, 1]}],
+                               [{'pool_size': [2, 2], 'strides': [1, 1]},
+                                {'pool_size': [2, 2], 'strides': [1, 1]}]]
 
-    save_directory = './testing/saved_model/'
-
-    tb_directory = './testing/tensorboard/'
+    # Dropout inputs
+    #     use : to use dropout in this layer
+    #     rate : dropout rate
+    dropout_parameters = [[{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}],
+                          [{'use': True, 'rate': 0.5},
+                           {'use': True, 'rate': 0.5}]]
 
     model = DeepCas(sess=session,
                     data_shape=data_shape,
@@ -68,40 +117,26 @@ def main():
                     learning_rate=learning_rate,
                     conv_parameters=conv2d_specifications,
                     max_pool_parameters=max_pool_specifications,
-                    save_directory=save_directory)
+                    dropout_parameters=dropout_parameters,
+                    use_batch_norm=use_batch_norm,
+                    use_dropout=use_dropout,
+                    tensorboard_directory=tensorboard_directory)
 
-# Data Manip
-#-------------------------------------------------------------------------
-
+    # Data Manip
+    #-------------------------------------------------------------------------
     path = ['data\Haeussler.tsv']
-
-    guide, target, score = processData(path)
-
-    if sub_sample:
-        guide, target, score = randomSample(sub_sample, guide, target, score)
-
-    '''
-    Shapes:
-        stacked = [Size, 4, 23, 2]
-        score = [Size]
-    '''
-
-    stacked = np.stack((guide, target), axis=-1)
-
-    print('> input data sizes:\n\tguides: {}\n\ttargets: {}\n\tscores: {}'.format(
-        str(len(guide)).rjust(8, ' '),
-        str(len(target)).rjust(7, ' '),
-        str(len(score)).rjust(8, ' ')))
-    print('> Stacked: {}'.format(str(list(stacked.shape)).rjust(10, ' ')))
-    print('> Score: {}'.format(str(list(score.shape)).rjust(9, ' ')))
+    training_stacked, training_score, test_stacked, test_score = getData(path=path,
+                                                                         sub_sample=sub_sample,
+                                                                         val_size=val_size)
 
     #-------------------------------------------------------------------------
 
-    model.input_data(stacked, score)
+    model.input_data(training_stacked, training_score, test_stacked, test_score)
 
+    print('> directory: {0}'.format(tensorboard_directory))
     print('> Begin Training!')
     print('--------------------------------------------------------')
-    model.train(tb_directory)
+    model.train(isRestore=restore)
 
 
 def processData(path):
@@ -162,7 +197,7 @@ def processData(path):
     print('\t> all targets have pam: {0}'.format(targetHasPam))
 
     print('> number of sample: {0}'.format(len(guide)))
-    #guide, target, score = doNothing(guide, target, score)
+    # guide, target, score = doNothing(guide, target, score)
 
     print('> percent same in guide & target: {0}'.format(numSame(guide, target)/len(guide) * 100))
     guide = p.oneHotEncoderList(guide)
@@ -173,6 +208,50 @@ def processData(path):
     score = np.array(score)
 
     return guide, target, score
+
+
+def splitData(val_size, guide, target, score):
+    assert val_size < len(score)
+
+    training_idx = np.random.randint(len(score), size=len(score)-val_size)
+    test_idx = np.random.randint(len(score), size=val_size)
+
+    training_guide, test_guide = np.array(guide[training_idx, :]),  np.array(guide[test_idx, :])
+    training_target, test_target = np.array(target[training_idx, :]),  np.array(target[test_idx, :])
+
+    training_score, test_score = np.array([score[i] for i in training_idx]),  np.array([score[i] for i in test_idx])
+
+    return training_guide, training_target, training_score, test_guide, test_target, test_score
+
+
+def getData(path, sub_sample, val_size):
+
+    path = ['data\Haeussler.tsv']
+
+    guide, target, score = processData(path)
+
+    if sub_sample:
+        guide, target, score = randomSample(sub_sample, guide, target, score)
+
+    '''
+    Shapes:
+        stacked = [Size, 4, 23, 2]
+        score = [Size]
+    '''
+
+    training_guide, training_target, training_score, test_guide, test_target, test_score = splitData(val_size, guide, target, score)
+
+    training_stacked = np.stack((training_guide, training_target), axis=-1)
+    test_stacked = np.stack((test_guide, test_target), axis=-1)
+
+    print('> total data:{}'.format(str(len(score)).rjust(10, ' ')))
+    print('> training data:{}'.format(str(len(training_score)).rjust(10, ' ')))
+    print('> test data:{}'.format(str(len(test_score)).rjust(10, ' ')))
+
+    print('> stacked: {}, {}'.format(str(list(training_stacked.shape)).rjust(10, ' '), str(list(test_stacked.shape)).rjust(10, ' ')))
+    print('> score: {}, {}'.format(str(list(training_score.shape)).rjust(9, ' '), str(list(test_score.shape)).rjust(9, ' ')))
+
+    return training_stacked, training_score, test_stacked, test_score
 
 
 def numSame(list1, list2):
@@ -198,5 +277,6 @@ def randomSample(size, guide, target, score):
 
 
 if __name__ == '__main__':
-    print('---------------------------------------------------------------------')
+    tf.logging.set_verbosity(tf.logging.INFO)
+    print('-------------------------------------------------------------------')
     main()

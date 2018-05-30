@@ -1,20 +1,35 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import numpy as np
+
+from sklearn.model_selection import KFold
 import tensorflow as tf
+import numpy as np
 import os
 
 
 class ConvBlock():
 
-    def __init__(self, input_tensor, conv_param, pool_param, inner_activation, last_activation, use_batch_norm, is_training, trainable, padding='same'):
+    def __init__(self,
+                 input_tensor,
+                 conv_param,
+                 pool_param,
+                 dropout_param,
+                 inner_activation,
+                 last_activation,
+                 use_batch_norm,
+                 use_dropout,
+                 is_training,
+                 trainable,
+                 padding='same'):
         self.input_tensor = input_tensor
         self.conv_param = conv_param
         self.pool_param = pool_param
+        self.dropout_param = dropout_param
         self.inner_activation = inner_activation
         self.last_activation = last_activation
         self.use_batch_norm = use_batch_norm
+        self.use_dropout = use_dropout
         self.is_training = is_training
         self.trainable = trainable
         self.padding = padding
@@ -24,12 +39,15 @@ class ConvBlock():
 
             conv_layer = self.conv_param[layer_index]
             pool_layer = self.pool_param[layer_index]
+            dropout_layer = self.dropout_param[layer_index]
 
             if layer_index is 0:
                 network = self.input_tensor
 
             activation = self.inner_activation
-            use_batch_norm = self.use_batch_norm and True
+            use_batch_norm = self.use_batch_norm
+            use_dropout = self.use_dropout
+            # If is last layer dont use batch norm
             if layer_index is len(self.conv_param) - 1:
                 activation = self.last_activation
                 use_batch_norm = False
@@ -39,10 +57,9 @@ class ConvBlock():
                                        kernel_size=conv_layer['kernel_size'],
                                        strides=conv_layer['strides'],
                                        padding=self.padding,
-                                       activation=tf.nn.relu,
+                                       activation=None,
                                        use_bias=True,
                                        kernel_initializer=tf.keras.initializers.he_uniform(),
-                                       bias_initializer=tf.zeros_initializer(),
                                        trainable=True)
 
             if use_batch_norm:
@@ -52,19 +69,27 @@ class ConvBlock():
                                                         scale=True)
 
             if activation is not None:
-                network = activation(network)
+                network = activation(network,
+                                     name='relu')
+
+            if use_dropout:
+                if dropout_layer['use']:
+                    network = tf.layers.dropout(network,
+                                                rate=float(dropout_layer['rate']),
+                                                training=self.is_training)
 
             if pool_layer is not None:
                 network = tf.layers.max_pooling2d(inputs=network,
                                                   pool_size=pool_layer['pool_size'],
                                                   strides=pool_layer['strides'],
-                                                  padding='same')
+                                                  padding='valid',
+                                                  name='pool')
         return network
 
 
 class DeepCas():
 
-    def __init__(self, sess, data_shape, batch_size, epochs, learning_rate, conv_parameters, max_pool_parameters, save_directory):
+    def __init__(self, sess, data_shape, batch_size, epochs, learning_rate, conv_parameters, max_pool_parameters, dropout_parameters, use_batch_norm, use_dropout, tensorboard_directory):
         self.sess = sess
         self.data_shape = data_shape
         self.epochs = epochs
@@ -72,16 +97,24 @@ class DeepCas():
         self.learning_rate = learning_rate
         self.conv_parameters = conv_parameters
         self.max_pool_parameters = max_pool_parameters
-        self.save_directory = save_directory
+        self.dropout_parameters = dropout_parameters
+        self.use_batch_norm = use_batch_norm
+        self.use_dropout = use_dropout
+        self.tensorboard_directory = tensorboard_directory
 
         self.initModel()
 
-    def input_data(self, data, labels):
+    def input_data(self, data, labels, val_data, val_labels):
         assert type(data).__module__ == np.__name__
         assert type(labels).__module__ == np.__name__
+        assert type(val_data).__module__ == np.__name__
+        assert type(val_labels).__module__ == np.__name__
 
         self.data = data
         self.labels = labels
+
+        self.val_data = val_data
+        self.val_labels = val_labels
 
     def initModel(self):
 
@@ -97,22 +130,25 @@ class DeepCas():
         net = self.x
         print('> Input Tensor: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
         layer_index = 1
-        for conv_param, pool_param in zip(self.conv_parameters, self.max_pool_parameters):
+        for conv_param, pool_param, dropout_param in zip(self.conv_parameters, self.max_pool_parameters, self.dropout_parameters):
             net = ConvBlock(input_tensor=net,
                             conv_param=conv_param,
                             pool_param=pool_param,
+                            dropout_param=dropout_param,
                             inner_activation=tf.nn.relu,
                             last_activation=tf.nn.relu,
-                            use_batch_norm=True,
+                            use_batch_norm=self.use_batch_norm,
+                            use_dropout=self.use_dropout,
                             is_training=self.is_training,
                             trainable=True).build()
             print('> Layer {}: {}'.format(str(layer_index).rjust(3, ' '),
                                           str(list(net.get_shape())).rjust(10, ' ')))
             layer_index += 1
 
-        net = tf.layers.flatten(net)
+        net = tf.layers.flatten(net,
+                                name='flatten')
         net = tf.layers.dense(inputs=net,
-                              units=160,  # tune
+                              units=60,  # tune
                               activation=tf.nn.relu,
                               use_bias=True,
                               kernel_initializer=tf.keras.initializers.he_uniform(),
@@ -130,7 +166,7 @@ class DeepCas():
 
         net = tf.nn.relu(net)
         net = tf.layers.dense(inputs=net,
-                              units=160,  # tune
+                              units=60,  # tune
                               activation=tf.nn.relu,
                               use_bias=True,
                               kernel_initializer=tf.keras.initializers.he_uniform(),
@@ -162,44 +198,29 @@ class DeepCas():
         # Results
         # ---------------------------------------------_------------------------
         # Loss Calculation
-        self.loss = tf.losses.softmax_cross_entropy(onehot_labels=self.y,
-                                                    logits=net)
+        self.loss = tf.reduce_mean(tf.square(net - self.y))
 
-        # Accuracy Calculation
-        self.predicted_indicies = tf.argmax(input=net,
-                                            axis=0)
-        self.real_indices = tf.argmax(input=self.y,
-                                      axis=0)
-        self.accuracy = tf.cast(tf.equal(self.predicted_indicies, self.real_indices),
-                                dtype=tf.float32)
-        self.accuracy = tf.reduce_mean(self.accuracy)
-
-        # Variable to dump accuracy
-        self.accuracy_output = tf.placeholder(dtype=tf.float32, shape=None)
+        self.loss_output = tf.placeholder(dtype=tf.float32, shape=None)
+        self.loss_output = self.loss
 
         # TensorBoard Summary
         self.loss_summary = tf.summary.scalar(name='Loss',
                                               tensor=self.loss)
-        self.accuracy_summary = tf.summary.scalar(name='Accuracy',
-                                                  tensor=self.accuracy)
-        self.merged_summaries = tf.summary.merge(inputs=[self.loss_summary, self.accuracy_summary])
 
-        self.accuracy_output_summary = tf.summary.scalar(name='Val Accuracy',
-                                                         tensor=self.accuracy_output)
-
-        self.val_summary = tf.summary.scalar(name='Val Accuracy',
-                                             tensor=self.accuracy_output)
+        self.val_summary = tf.summary.scalar(name='Loss Value',
+                                             tensor=self.loss_output)
 
     def train_init(self):
 
         model_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
+            # learning_rate=self.learning_rate
             self.optimizer = tf.train.AdamOptimizer().minimize(self.loss,
                                                                var_list=model_variables)
         self.sess.run(tf.variables_initializer(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)))
 
-    def train(self, tensorboard_directory):
+    def train(self, isRestore=True):
 
         tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -207,17 +228,26 @@ class DeepCas():
 
         self.train_init()
 
+        saver = tf.train.Saver()
+        import os.path
+
+        model_path = self.tensorboard_directory + '/model.ckpt'
+
+        if isRestore:
+            if os.path.isfile(model_path):
+                saver = tf.train.import_meta_graph(model_path + '.meta')
+                saver.restore(model_path)
+
         # TensorBoard & Saver Init
-        if not os.path.exists(tensorboard_directory):
-            os.makedirs(tensorboard_directory)
-        train_writer, val_writer = [tf.summary.FileWriter(os.path.join(tensorboard_directory, phase),
+        if not os.path.exists(self.tensorboard_directory):
+            os.makedirs(self.tensorboard_directory)
+        train_writer, val_writer = [tf.summary.FileWriter(os.path.join(self.tensorboard_directory, phase),
                                                           self.sess.graph) for phase in ['train', 'val']]
-        save_file = os.path.join(self.save_directory, 'model')
 
         # self.sess.run(init_op)
         num_batches = int(len(self.labels) / self.batch_size)
-
-        batch_loss, batch_accuracy = 0, 0
+        train_writer.add_graph(self.sess.graph)
+        val_writer.add_graph(self.sess.graph)
         for epoch in range(1, self.epochs+1):
             step = 1
             for _ in range(num_batches):
@@ -227,39 +257,52 @@ class DeepCas():
                 # print('Batch x: {}'.format(str(list(batch_x.shape)).rjust(10, ' ')))
                 # print('Batch y: {}'.format(str(list(batch_y.shape)).rjust(10, ' ')))
 
-                loss, summary, _, = self.sess.run([self.loss, self.merged_summaries, self.optimizer],
+                loss, summary, _, = self.sess.run([self.loss, self.loss_summary, self.optimizer],
                                                   feed_dict={self.is_training: True,
                                                              self.x: batch_x,
                                                              self.y: batch_y})
-                if step % 100 is 0:
+                if step % 10 is 0:
                     # Output Loss to Terminal, Summary to TensorBoard
-                    print("Step: {} Loss: {}".format(step, loss))
-                    # train_writer.add_summary(summary, step)
+                    print("> Epoch: {} Loss: {}".format(epoch, round(loss, 5)))
+                    train_writer.add_summary(summary, step)
 
                 step += 1
 
-            # TODO: Test Accuracy in multiple batches, none of this 1 batch crap
-            epoch_x, epoch_y = epoch_x, epoch_y = self.next_batch(self.batch_size, self.data, self.labels)
-            epoch_y = epoch_y[:, None]
-            loss, accuracy = self.sess.run([self.loss, self.accuracy],
-                                           feed_dict={self.is_training: True,
-                                                      self.x: batch_x,
-                                                      self.y: batch_y})
-            batch_loss += loss
-            batch_accuracy += accuracy
+            # Validation
+            if epoch % 10 is 0:
+                epoch_x, epoch_y = self.next_batch(5000, self.val_data, self.val_labels)
+                epoch_y = epoch_y[:, None]
+                loss = self.sess.run([self.loss],
+                                     feed_dict={self.is_training: False,
+                                                self.x: epoch_x,
+                                                self.y: epoch_y})
+                val_summary = self.sess.run(self.val_summary,
+                                            feed_dict={self.loss_output: loss[0]})
 
-            print("> Epoch: {0}\tLoss: {1}\tAccuracy {2}".format(
-                str(epoch).rjust(6), str(loss/20).rjust(6), str(accuracy/20).rjust(6)))
+                val_writer.add_summary(val_summary, epoch)
 
-            if epoch % 100 is 0:
-                print("> Average:\tEpoch: {0}\tLoss: {1}\tAccuracy {2}".format(
-                    str(epoch).rjust(6), str(batch_loss/20).rjust(6), str(batch_accuracy/20).rjust(6)))
-                batch_loss, batch_accuracy = 0, 0
+                print('> Validation: Epoch: {} Loss: {}'.format(epoch, round(loss[0], 5)))
+                print('--------------------------------------------------------')
+                save_path = saver.save(self.sess, model_path)
+                print('> Model Saved at {0}'.format(save_path))
                 print('--------------------------------------------------------')
 
-            # val_summary = self.sess.run(self.val_summary,
-            #                             feed_dict={self.accuracy_output: accuracy})
-            # val_writer.add_summary(val_summary, step)
+            # # TODO: Test Accuracy in multiple batches, none of this 1 batch crap
+            # epoch_x, epoch_y = self.next_batch(self.batch_size, self.data, self.labels)
+            # epoch_y = epoch_y[:, None]
+            # loss, accuracy = self.sess.run([self.loss, self.accuracy],
+            #                                feed_dict={self.is_training: True,
+            #                                           self.x: batch_x,
+            #                                           self.y: batch_y})
+            #
+            # print("> Epoch: {0}\tLoss: {1}\tAccuracy {2}".format(
+            #     str(epoch).rjust(6), str(loss/20).rjust(6), str(accuracy/20).rjust(6)))
+            #
+            # if epoch % 10 is 0:
+            #
+            #     print('--------------------------------------------------------')
+
+            #
 
     def next_batch(self, batch_size, data, labels):
 
