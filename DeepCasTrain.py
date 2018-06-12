@@ -22,14 +22,14 @@ def main():
     batch_size = 1500
     val_size = 5000
     epochs = 10000000
-    learning_rate = 1e-3
+    learning_rate = 0.0001  # not used in DeepCas.py, using adaptive learning rate
 
     sub_sample = None
 
     use_batch_norm = True
     use_dropout = False
 
-    tensorboard_directory = './tmp/tensorboard/2_basic_batch_norm_2'
+    tensorboard_directory = './tmp/tensorboard/1_2x3x3_up_sample_batch_norm_3'
 
     # Conv2d inputs
     #     filters : Integer, dimensionality of the output space (ie. the number of filters in the convolution)
@@ -37,77 +37,33 @@ def main():
     #                   Can be a single integer to specify the same value for all spatial dimensions
     #     strides : An integer or tuple/list of 2 integers, specifying the strides of the convolution along the height and width
     #               Can be a single integer to specify the same value for all spatial dimensions
-    conv2d_specifications = [[{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
+    conv2d_specifications = [[{'filters': 40, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 40, 'kernel_size': [2, 2], 'strides': (1, 1)}],
                              [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
                               {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}],
-                             [{'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)},
-                              {'filters': 80, 'kernel_size': [2, 2], 'strides': (1, 1)}]]
+                             [{'filters': 160, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 160, 'kernel_size': [2, 2], 'strides': (1, 1)},
+                              {'filters': 160, 'kernel_size': [2, 2], 'strides': (1, 1)}]]
 
     # Max Pool inputs
     #     pool_size : An integer or tuple/list of 2 integers: (pool_height, pool_width) specifying the size of the pooling window
     #                 Can be a single integer to specify the same value for all spatial dimensions
     #     strides : n integer or tuple/list of 2 integers, specifying the strides of the pooling operation
     #               Can be a single integer to specify the same value for all spatial dimensions
-    max_pool_specifications = [[{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 1], 'strides': [1, 1]},
-                                {'pool_size': [1, 1], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 2], 'strides': [1, 1]},
-                                {'pool_size': [1, 2], 'strides': [1, 1]}],
-                               [{'pool_size': [1, 2], 'strides': [1, 1]},
-                                {'pool_size': [1, 2], 'strides': [1, 1]}],
-                               [{'pool_size': [2, 2], 'strides': [1, 1]},
-                                {'pool_size': [2, 2], 'strides': [1, 1]}]]
+    max_pool_specifications = [[{'use': False, 'pool_size': [1, 2], 'strides': [1, 1]},
+                                {'use': True, 'pool_size': [1, 4], 'strides': [1, 1]}],
+                               [{'use': False, 'pool_size': [1, 2], 'strides': [1, 1]},
+                                {'use': False, 'pool_size': [1, 2], 'strides': [1, 1]},
+                                {'use': True, 'pool_size': [2, 4], 'strides': [1, 1]}],
+                               [{'use': False, 'pool_size': [1, 2], 'strides': [1, 1]},
+                                {'use': False, 'pool_size': [1, 2], 'strides': [1, 1]},
+                                {'use': True, 'pool_size': [2, 4], 'strides': [1, 1]}]]
 
     # Dropout inputs
     #     use : to use dropout in this layer
     #     rate : dropout rate
     dropout_parameters = [[{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
-                           {'use': True, 'rate': 0.5}],
-                          [{'use': True, 'rate': 0.5},
                            {'use': True, 'rate': 0.5}]]
 
     model = DeepCas(sess=session,

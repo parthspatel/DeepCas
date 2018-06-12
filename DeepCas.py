@@ -14,22 +14,18 @@ class ConvBlock():
                  input_tensor,
                  conv_param,
                  pool_param,
-                 dropout_param,
                  inner_activation,
                  last_activation,
                  use_batch_norm,
-                 use_dropout,
                  is_training,
                  trainable,
                  padding='same'):
         self.input_tensor = input_tensor
         self.conv_param = conv_param
         self.pool_param = pool_param
-        self.dropout_param = dropout_param
         self.inner_activation = inner_activation
         self.last_activation = last_activation
         self.use_batch_norm = use_batch_norm
-        self.use_dropout = use_dropout
         self.is_training = is_training
         self.trainable = trainable
         self.padding = padding
@@ -39,14 +35,12 @@ class ConvBlock():
 
             conv_layer = self.conv_param[layer_index]
             pool_layer = self.pool_param[layer_index]
-            dropout_layer = self.dropout_param[layer_index]
 
             if layer_index is 0:
                 network = self.input_tensor
 
             activation = self.inner_activation
             use_batch_norm = self.use_batch_norm
-            use_dropout = self.use_dropout
             # If is last layer dont use batch norm
             if layer_index is len(self.conv_param) - 1:
                 activation = self.last_activation
@@ -72,18 +66,13 @@ class ConvBlock():
                 network = activation(network,
                                      name='relu')
 
-            if use_dropout:
-                if dropout_layer['use']:
-                    network = tf.layers.dropout(network,
-                                                rate=float(dropout_layer['rate']),
-                                                training=self.is_training)
-
             if pool_layer is not None:
-                network = tf.layers.max_pooling2d(inputs=network,
-                                                  pool_size=pool_layer['pool_size'],
-                                                  strides=pool_layer['strides'],
-                                                  padding='valid',
-                                                  name='pool')
+                if pool_layer['use']:
+                    network = tf.layers.max_pooling2d(inputs=network,
+                                                      pool_size=pool_layer['pool_size'],
+                                                      strides=pool_layer['strides'],
+                                                      padding='valid',
+                                                      name='pool')
         return network
 
 
@@ -130,15 +119,15 @@ class DeepCas():
         net = self.x
         print('> Input Tensor: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
         layer_index = 1
-        for conv_param, pool_param, dropout_param in zip(self.conv_parameters, self.max_pool_parameters, self.dropout_parameters):
+        for conv_param, pool_param in zip(self.conv_parameters, self.max_pool_parameters):
             net = ConvBlock(input_tensor=net,
                             conv_param=conv_param,
                             pool_param=pool_param,
-                            dropout_param=dropout_param,
+
                             inner_activation=tf.nn.relu,
                             last_activation=tf.nn.relu,
                             use_batch_norm=self.use_batch_norm,
-                            use_dropout=self.use_dropout,
+
                             is_training=self.is_training,
                             trainable=True).build()
             print('> Layer {}: {}'.format(str(layer_index).rjust(3, ' '),
@@ -158,6 +147,14 @@ class DeepCas():
                               trainable=True,
                               name='fc_1')
         print('> Fully Connected 1: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
+
+        if self.use_dropout:
+            if self.dropout_parameters[0]['use']:
+                net = tf.layers.dropout(net,
+                                        rate=float(self.dropout_parameters[0]['rate']),
+                                        training=self.is_training,
+                                        name='do_fc_1')
+
         net = tf.layers.batch_normalization(inputs=net,
                                             training=self.is_training,
                                             trainable=True,
@@ -175,7 +172,15 @@ class DeepCas():
                               bias_regularizer=None,
                               trainable=True,
                               name='fc_2')
+
         print('> Fully Connected 2: {}'.format(str(list(net.get_shape())).rjust(10, ' ')))
+
+        if self.use_dropout:
+            if self.dropout_parameters[1]['use']:
+                net = tf.layers.dropout(net,
+                                        rate=float(self.dropout_parameters[1]['rate']),
+                                        training=self.is_training,
+                                        name='do_fc_2')
         net = tf.layers.batch_normalization(inputs=net,
                                             training=self.is_training,
                                             trainable=True,
@@ -207,7 +212,7 @@ class DeepCas():
         self.loss_summary = tf.summary.scalar(name='Loss',
                                               tensor=self.loss)
 
-        self.val_summary = tf.summary.scalar(name='Loss Value',
+        self.val_summary = tf.summary.scalar(name='Loss_Value',
                                              tensor=self.loss_output)
 
     def train_init(self):
@@ -249,8 +254,8 @@ class DeepCas():
         train_writer.add_graph(self.sess.graph)
         val_writer.add_graph(self.sess.graph)
         for epoch in range(1, self.epochs+1):
-            step = 1
-            for _ in range(num_batches):
+            for step in range(num_batches):
+                step += 1
                 batch_x, batch_y = self.next_batch(self.batch_size, self.data, self.labels)
                 batch_y = batch_y[:, None]
 
@@ -261,16 +266,14 @@ class DeepCas():
                                                   feed_dict={self.is_training: True,
                                                              self.x: batch_x,
                                                              self.y: batch_y})
-                if step % 10 is 0:
+                if step is num_batches:
                     # Output Loss to Terminal, Summary to TensorBoard
                     print("> Epoch: {} Loss: {}".format(epoch, round(loss, 5)))
                     train_writer.add_summary(summary, step)
 
-                step += 1
-
             # Validation
             if epoch % 10 is 0:
-                epoch_x, epoch_y = self.next_batch(5000, self.val_data, self.val_labels)
+                epoch_x, epoch_y = self.next_batch(len(self.val_labels), self.val_data, self.val_labels)
                 epoch_y = epoch_y[:, None]
                 loss = self.sess.run([self.loss],
                                      feed_dict={self.is_training: False,
