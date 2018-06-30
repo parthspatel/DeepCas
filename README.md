@@ -1,2 +1,2 @@
 # DeepCas
-Cas9 Activity Predictor using Deep Learning.
+Deep Learning Cas9 Activity Predictor
